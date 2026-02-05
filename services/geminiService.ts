@@ -1,8 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Asset, Bias, BiasOutput, NewsArticle, EconomicEvent, MacroContext } from '../types';
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+import { Asset, BiasOutput, NewsArticle, EconomicEvent, MacroContext } from '../types';
 
 const HORIZON_SCHEMA = {
   type: Type.OBJECT,
@@ -49,27 +47,30 @@ export const generateSystemBiases = async (
   events: EconomicEvent[],
   macro: MacroContext
 ): Promise<Record<Asset, BiasOutput>> => {
-  const topNews = news.sort((a, b) => b.impact_score - a.impact_score).slice(0, 15);
+  // Initialize inside function to prevent top-level ReferenceErrors
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const topNews = news.sort((a, b) => b.impact_score - a.impact_score).slice(0, 20);
 
   const prompt = `
-    Role: Institutional Commodity Strategist.
-    Task: Generate directional bias for GOLD, SILVER, and OIL.
+    Institutional Role: Lead Commodity Strategist.
+    Objective: Generate bias for GOLD, SILVER, and OIL.
     
-    STABILITY RULES:
-    1. PRIORITIZE STRUCTURAL MACRO: USD (DXY) and Real Yields are the "Anchor Drivers" for Swing/Intraday. 
-    2. TRANSIENT NOISE: Headlines with Impact < 70 should only influence the SCALPING horizon.
-    3. SILVER INDEPENDENCE: Evaluate Silver based on manufacturing/industrial PMIs and solar demand. Do not auto-copy Gold bias.
-    4. CONFIDENCE: If news is contradictory, bias MUST be NEUTRAL with low confidence.
+    STABILITY & BIAS CONTINUITY RULES:
+    1. ANCHORING: Swing and Intraday biases MUST be anchored to the Macro Pulse (DXY, Yields). Do not flip these based on a single inventory report.
+    2. TRANSIENCE: Only the SCALPING horizon should react to "noise" headlines (Impact < 70).
+    3. SILVER SPECIALIZATION: Silver is an industrial metal. Evaluate it via manufacturing PMIs and PV demand. It often decouples from Gold during periods of industrial expansion.
+    4. NOISE FILTER: If news is contradictory and there is no clear macro trend, the bias MUST default to NEUTRAL.
     
-    INPUT DATA:
-    ${topNews.map(n => `[${n.assets.join(',')}] IMPACT:${n.impact_score} | ${n.title}`).join('\n')}
+    INPUT INTELLIGENCE:
+    ${topNews.map(n => `[ASSET:${n.assets.join(',')}] IMPACT:${n.impact_score} | ${n.title}`).join('\n')}
     
-    MACRO ANCHOR:
+    MACRO ANCHORS:
     - USD Trend: ${macro.usd_trend}
     - Yields: ${macro.yields_trend}
-    - Risk: ${macro.risk_sentiment}
+    - Risk Sentiment: ${macro.risk_sentiment}
     
-    Provide the response in the specified JSON schema. Ensure the 'driver' field contains a concise, logical justification.
+    Return the analysis in strict JSON format according to the schema.
   `;
 
   try {
@@ -78,8 +79,7 @@ export const generateSystemBiases = async (
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: SYSTEM_BIAS_SCHEMA,
-        thinkingConfig: { thinkingBudget: 0 } 
+        responseSchema: SYSTEM_BIAS_SCHEMA
       }
     });
 
@@ -91,7 +91,7 @@ export const generateSystemBiases = async (
 
     return formattedResult as Record<Asset, BiasOutput>;
   } catch (error: any) {
-    console.error("Bias Engine Failure:", error);
+    console.error("AI Bias Engine Failure:", error);
     throw error;
   }
 };
