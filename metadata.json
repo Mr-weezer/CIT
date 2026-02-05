@@ -1,0 +1,5 @@
+{
+  "name": "Commodity Intelligence Monitor",
+  "description": "An institutional-grade commodity intelligence system for Gold, Silver, and Oil. It features a strictly separated data ingestion layer and an AI-driven directional bias engine powered by Gemini.",
+  "requestFramePermissions": []
+}
